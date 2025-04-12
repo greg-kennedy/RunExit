@@ -7,19 +7,42 @@ uses
 
 var
   h: Word;
+  reParam, reValue: String;
   pathName: String;
   fileName: String;
   params: String;
   errorMsg: String;
-  i, num: Integer;
+  i, num, pathIdx, nCmdShow: Integer;
 
 begin
+  { Set defaults }
+  nCmdShow := SW_SHOWNORMAL;
+
+  { Look for slash-options before the path param and handle them }
+  pathIdx := 1;
+  while ((pathIdx < paramCount) and (ParamStr(pathIdx)[1] = '/')) do
+  begin
+    { Split slash opts at equal sign }
+    i := Pos ('=', ParamStr(pathIdx));
+    if (i = 0) then i := Length(ParamStr(pathIdx)) + 1;
+    reParam := UpperCase(Copy(ParamStr(pathIdx), 2, i - 2));
+    reValue := Copy(ParamStr(pathIdx), i + 1, Length(ParamStr(pathIdx)) - i);
+
+    { Test each option type and extract its value - only one for now }
+    if (reParam = 'SHOW') then
+    begin
+      nCmdShow := StrToIntDef(reValue, SW_SHOWNORMAL);
+    end;
+
+    Inc(pathIdx);
+  end;
+
   { Split first parameter into path and filename }
-  i := Pos ('\', ParamStr (1));
+  i := Pos ('\', ParamStr (PathIdx));
   if (i > 0) then
   begin
     { Make it a path, find last occurrence of directory separator }
-    pathName := ParamStr (1);
+    pathName := ParamStr (PathIdx);
     i := (StrRScan (@pathName [1], '\') - @pathName [1]) + 1;
     fileName := Copy (pathName, i + 1, Length (pathName) - i);
     { Remove the trailing directory separator from path }
@@ -27,14 +50,15 @@ begin
     if pathName [i - 1] <> ':' then begin i := i - 1 end;
     pathName := Copy (pathName, 1, i);
   end else begin
-    fileName := ParamStr (1);
+    fileName := ParamStr (PathIdx);
   end;
 
   { Concatenate any remaining parameters }
+  Inc(pathIdx);
   num := ParamCount;
-  for i := 2 to num do
+  for i := pathIdx to num do
   begin
-    if (i > 2) then params := params + ' ';
+    if (i > pathIdx) then params := params + ' ';
     params := params + ParamStr (i);
   end;
 
@@ -44,7 +68,7 @@ begin
   params := params + #0;
 
   { Execute the command }
-  h := ShellExecute (0, nil, @fileName [1], @params [1], @pathName [1], SW_SHOWNORMAL);
+  h := ShellExecute (0, nil, @fileName [1], @params [1], @pathName [1], nCmdShow);
   if (h <= 32) then
   begin
     { A return value less than or equal to 32 specifies an error }
